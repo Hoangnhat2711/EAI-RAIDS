@@ -1,0 +1,36 @@
+# config.yaml
+
+# General settings
+device: "cuda" # "cuda" if torch.cuda.is_available() else "cpu"
+random_state: 42
+num_classes_adult: 2
+num_classes_compas: 2
+num_classes_fairface: 7
+
+# Training settings
+learning_rate: 0.001
+batch_size: 32
+epochs_per_task: 5
+
+# EWC (Elastic Weight Consolidation) settings
+lambda_reg: 0.1
+
+# LwF (Learning without Forgetting) settings
+alpha_lwf: 1.0
+temperature_lwf: 2.0
+
+# Data settings
+adult_test_size: 0.2
+compas_test_size: 0.2
+
+# FairFace (Image Data) settings
+fairface_image_size:
+  - 64
+  - 64
+fairface_num_channels: 3
+fairface_num_sensitive_groups: 7
+fairface_num_samples: 1000
+fairface_test_size: 0.2
+
+# MLflow settings
+# tracking_uri: "http://localhost:5000"

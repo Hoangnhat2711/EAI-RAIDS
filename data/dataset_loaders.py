@@ -10,7 +10,7 @@ from data.data_transforms import get_image_transforms # Import image transforms
 
 # Placeholder for data loading functions
 
-def load_adult_census_data(test_size=0.2, random_state=42):
+def load_adult_census_data(test_size, random_state):
     """
     Loads and preprocesses the Adult Census dataset.
 
@@ -21,10 +21,8 @@ def load_adult_census_data(test_size=0.2, random_state=42):
     target (y), and sensitive attributes (s) as pandas DataFrames.
 
     Args:
-        test_size (float, optional): The proportion of the dataset to include in the test split.
-                                     Defaults to 0.2.
-        random_state (int, optional): Controls the shuffling applied to the data before splitting.
-                                      Defaults to 42.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Controls the shuffling applied to the data before splitting.
 
     Returns:
         tuple: A tuple containing:
@@ -34,7 +32,7 @@ def load_adult_census_data(test_size=0.2, random_state=42):
             - y_test (pd.Series): Testing target labels.
             - s_train (pd.DataFrame): Training sensitive attributes (one-hot encoded).
             - s_test (pd.DataFrame): Testing sensitive attributes (one-hot encoded).
-        Returns (None, None, None, None, None) if data files are not found.
+        Returns (None, None, None, None, None, None) if data files are not found.
     """
     print("Loading and preprocessing Adult Census data...")
 
@@ -128,7 +126,7 @@ def load_adult_census_data(test_size=0.2, random_state=42):
     print("Adult Census data loaded and preprocessed.")
     return X_train, X_test, y_train, y_test, s_train, s_test
 
-def load_compas_data(test_size=0.2, random_state=42):
+def load_compas_data(test_size, random_state):
     """
     Loads and preprocesses the COMPAS dataset.
 
@@ -139,10 +137,8 @@ def load_compas_data(test_size=0.2, random_state=42):
     target (y), and sensitive attributes (s) as pandas DataFrames.
 
     Args:
-        test_size (float, optional): The proportion of the dataset to include in the test split.
-                                     Defaults to 0.2.
-        random_state (int, optional): Controls the shuffling applied to the data before splitting.
-                                      Defaults to 42.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Controls the shuffling applied to the data before splitting.
 
     Returns:
         tuple: A tuple containing:
@@ -152,7 +148,7 @@ def load_compas_data(test_size=0.2, random_state=42):
             - y_test (pd.Series): Testing target labels.
             - s_train (pd.DataFrame): Training sensitive attributes (one-hot encoded).
             - s_test (pd.DataFrame): Testing sensitive attributes (one-hot encoded).
-        Returns (None, None, None, None, None) if data file is not found.
+        Returns (None, None, None, None, None, None) if data file is not found.
     """
     print("Loading and preprocessing COMPAS data...")
 
@@ -250,7 +246,7 @@ def load_compas_data(test_size=0.2, random_state=42):
     print("COMPAS data loaded and preprocessed.")
     return X_train, X_test, y_train, y_test, s_train, s_test
 
-def load_fairface_data(image_size=(64, 64), num_channels=3, num_classes=7, num_sensitive_groups=7, num_samples=1000, test_size=0.2, random_state=42):
+def load_fairface_data(image_size, num_channels, num_classes, num_sensitive_groups, num_samples, test_size, random_state):
     """
     (Simulated) Loads and preprocesses the FairFace dataset by generating dummy data.
 
@@ -259,15 +255,13 @@ def load_fairface_data(image_size=(64, 64), num_channels=3, num_classes=7, num_s
     In a real-world scenario, this would involve reading image files and their annotations.
 
     Args:
-        image_size (tuple, optional): The (height, width) of the simulated images. Defaults to (64, 64).
-        num_channels (int, optional): The number of color channels (e.g., 3 for RGB). Defaults to 3.
-        num_classes (int, optional): The number of output classes for the task. Defaults to 7 (for FairFace races/ethnicities).
-        num_sensitive_groups (int, optional): The number of sensitive attribute categories. Defaults to 7.
-        num_samples (int, optional): The total number of dummy samples to generate. Defaults to 1000.
-        test_size (float, optional): The proportion of the dataset to include in the test split.
-                                     Defaults to 0.2.
-        random_state (int, optional): Controls the shuffling applied to the data before splitting.
-                                      Defaults to 42.
+        image_size (tuple): The (height, width) of the simulated images.
+        num_channels (int): The number of color channels (e.g., 3 for RGB).
+        num_classes (int): The number of output classes for the task.
+        num_sensitive_groups (int): The number of sensitive attribute categories.
+        num_samples (int): The total number of dummy samples to generate.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Controls the shuffling applied to the data before splitting.
 
     Returns:
         tuple: A tuple containing:
@@ -427,16 +421,14 @@ class FairFaceDataset(Dataset):
 
         return image, label, sensitive_attr
 
-def get_adult_census_dataloader(batch_size=32, test_size=0.2, random_state=42):
+def get_adult_census_dataloader(batch_size, test_size, random_state):
     """
     Loads, preprocesses, and creates PyTorch DataLoaders for the Adult Census dataset.
 
     Args:
-        batch_size (int, optional): The number of samples per batch. Defaults to 32.
-        test_size (float, optional): The proportion of the dataset to include in the test split.
-                                     Defaults to 0.2.
-        random_state (int, optional): Controls the shuffling applied to the data before splitting.
-                                      Defaults to 42.
+        batch_size (int): The number of samples per batch.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Controls the shuffling applied to the data before splitting.
 
     Returns:
         tuple: A tuple containing:
@@ -466,16 +458,14 @@ def get_adult_census_dataloader(batch_size=32, test_size=0.2, random_state=42):
 
     return train_loader, test_loader, input_dim, num_sensitive_attrs
 
-def get_compas_dataloader(batch_size=32, test_size=0.2, random_state=42):
+def get_compas_dataloader(batch_size, test_size, random_state):
     """
     Loads, preprocesses, and creates PyTorch DataLoaders for the COMPAS dataset.
 
     Args:
-        batch_size (int, optional): The number of samples per batch. Defaults to 32.
-        test_size (float, optional): The proportion of the dataset to include in the test split.
-                                     Defaults to 0.2.
-        random_state (int, optional): Controls the shuffling applied to the data before splitting.
-                                      Defaults to 42.
+        batch_size (int): The number of samples per batch.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Controls the shuffling applied to the data before splitting.
 
     Returns:
         tuple: A tuple containing:
@@ -503,7 +493,7 @@ def get_compas_dataloader(batch_size=32, test_size=0.2, random_state=42):
 
     return train_loader, test_loader, input_dim, num_sensitive_attrs
 
-def get_fairface_dataloader(batch_size=32, image_size=(64, 64), num_channels=3, num_classes=7, num_sensitive_groups=7, num_samples=1000, test_size=0.2, random_state=42):
+def get_fairface_dataloader(batch_size, image_size, num_channels, num_classes, num_sensitive_groups, num_samples, test_size, random_state):
     """
     (Simulated) Loads, preprocesses, and creates PyTorch DataLoaders for the FairFace dataset.
 
@@ -511,16 +501,14 @@ def get_fairface_dataloader(batch_size=32, image_size=(64, 64), num_channels=3, 
     It generates dummy image data and creates DataLoaders with specified transformations.
 
     Args:
-        batch_size (int, optional): The number of samples per batch. Defaults to 32.
-        image_size (tuple, optional): The (height, width) of the simulated images. Defaults to (64, 64).
-        num_channels (int, optional): The number of color channels (e.g., 3 for RGB). Defaults to 3.
-        num_classes (int, optional): The number of output classes for the task. Defaults to 7.
-        num_sensitive_groups (int, optional): The number of sensitive attribute categories. Defaults to 7.
-        num_samples (int, optional): The total number of dummy samples to generate. Defaults to 1000.
-        test_size (float, optional): The proportion of the dataset to include in the test split.
-                                     Defaults to 0.2.
-        random_state (int, optional): Controls the shuffling applied to the data before splitting.
-                                      Defaults to 42.
+        batch_size (int): The number of samples per batch.
+        image_size (tuple): The (height, width) of the simulated images.
+        num_channels (int): The number of color channels (e.g., 3 for RGB).
+        num_classes (int): The number of output classes for the task.
+        num_sensitive_groups (int): The number of sensitive attribute categories.
+        num_samples (int): The total number of dummy samples to generate.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Controls the shuffling applied to the data before splitting.
 
     Returns:
         tuple: A tuple containing:
