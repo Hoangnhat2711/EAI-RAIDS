@@ -260,7 +260,7 @@ class RCLTrainer:
                 y_pred_all,
                 s_attr_all,
                 sensitive_feature_info['privileged_groups'],
-                sensitive_feature_info['unprivileged_groups']
+                sensitive_feature_info['unprivileged_groups'],
             )
             metrics.update(fairness_results)
 

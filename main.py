@@ -3,30 +3,21 @@ import mlflow # Import MLflow
 
 from core.rcl_trainer import RCLTrainer
 from core.simple_trainer import SimpleTrainer
-from data.dataset_loaders import get_adult_census_dataloader, get_compas_dataloader
-
-# Define a specific trainer for LwF to manage its state (previous_model)
-class LwFTrainer(RCLTrainer):
-    def __init__(self, learning_rate=0.001, device='cpu'):
-        super().__init__(learning_rate, device)
-        print(f"LwFTrainer initialized. Using device: {self.device}")
-
-    def train_task(self, data_type, input_shape, num_classes, task_id, train_loader, epochs=10, lambda_reg=0.1, alpha_lwf=1.0, use_ewc=False, use_lwf=True):
-        # LwF always uses use_lwf=True and ignores lambda_reg
-        super().train_task(data_type, input_shape, num_classes, task_id, train_loader, epochs, lambda_reg=0.0, alpha_lwf=alpha_lwf, use_ewc=False, use_lwf=True)
+from data.dataset_loaders import get_adult_census_dataloader, get_compas_dataloader, get_fairface_dataloader # Import FairFace dataloader
+from config import Config # Import the Config class
 
 
 if __name__ == "__main__":
-    # Initialize the trainers
-    # Each trainer instance will maintain its own model and regularization states across tasks.
-    rcl_framework_ewc = RCLTrainer(learning_rate=0.001, device='cuda' if torch.cuda.is_available() else 'cpu')
-    simple_framework = SimpleTrainer(learning_rate=0.001, device='cuda' if torch.cuda.is_available() else 'cpu')
-    lwf_framework = LwFTrainer(learning_rate=0.001, device='cuda' if torch.cuda.is_available() else 'cpu') # Initialize LwF Trainer
+    # Initialize the trainers using values from Config
+    rcl_framework_ewc = RCLTrainer(learning_rate=Config.LEARNING_RATE, device=Config.DEVICE)
+    simple_framework = SimpleTrainer(learning_rate=Config.LEARNING_RATE, device=Config.DEVICE)
+    # LwF Trainer will now also be an instance of RCLTrainer
+    lwf_framework = RCLTrainer(learning_rate=Config.LEARNING_RATE, device=Config.DEVICE) 
 
     # --- Task 1: Structured Data (Adult Census) ---
     print("\n--- Preparing Task 1: Adult Census Data ---")
-    train_loader_adult, test_loader_adult, input_dim_adult, num_sensitive_attrs_adult = get_adult_census_dataloader(batch_size=32)
-    num_classes_adult = 2  # Binary classification for income
+    train_loader_adult, test_loader_adult, input_dim_adult, num_sensitive_attrs_adult = get_adult_census_dataloader(batch_size=Config.BATCH_SIZE, test_size=Config.ADULT_TEST_SIZE, random_state=Config.RANDOM_STATE)
+    num_classes_adult = Config.NUM_CLASSES_ADULT  # Binary classification for income
     
     # Define sensitive feature info for Adult Census
     adult_sensitive_feature_info = {
@@ -46,13 +37,13 @@ if __name__ == "__main__":
                 num_classes=num_classes_adult,
                 task_id=1,
                 train_loader=train_loader_adult,
-                epochs=5,
-                lambda_reg=0.1, # EWC regularization strength
+                epochs=Config.EPOCHS_PER_TASK,
+                lambda_reg=Config.LAMBDA_REG, # EWC regularization strength from config
                 use_ewc=True, use_lwf=False # Explicitly enable EWC, disable LwF
             )
-            rcl_framework_ewc.evaluate_task(test_loader_adult, num_classes_adult, sensitive_feature_info=adult_sensitive_feature_info)
+            rcl_framework_ewc.evaluate_task(test_loader_adult, num_classes_adult, sensitive_feature_info=adult_sensitive_feature_info, task_id=1)
 
-        # Run with LwF-Framework
+        # Run with LwF-Framework (using RCLTrainer with LwF enabled)
         with mlflow.start_run(run_name="Adult_Census_Task1_LwF"):
             print("\n### Running Adult Census with LwF-Framework ###")
             mlflow.log_param("framework", "LwF")
@@ -62,11 +53,11 @@ if __name__ == "__main__":
                 num_classes=num_classes_adult,
                 task_id=1,
                 train_loader=train_loader_adult,
-                epochs=5,
-                alpha_lwf=1.0, # LwF distillation strength
+                epochs=Config.EPOCHS_PER_TASK,
+                alpha_lwf=Config.ALPHA_LWF, # LwF distillation strength from config
                 use_ewc=False, use_lwf=True # Explicitly enable LwF, disable EWC
             )
-            lwf_framework.evaluate_task(test_loader_adult, num_classes_adult, sensitive_feature_info=adult_sensitive_feature_info)
+            lwf_framework.evaluate_task(test_loader_adult, num_classes_adult, sensitive_feature_info=adult_sensitive_feature_info, task_id=1)
 
         # Run with SimpleTrainer (Baseline)
         with mlflow.start_run(run_name="Adult_Census_Task1_Baseline"):
@@ -78,15 +69,15 @@ if __name__ == "__main__":
                 num_classes=num_classes_adult,
                 task_id=1,
                 train_loader=train_loader_adult,
-                epochs=5,
+                epochs=Config.EPOCHS_PER_TASK,
                 lambda_reg=0.0, alpha_lwf=0.0, use_ewc=False, use_lwf=False # No regularization
             )
-            simple_framework.evaluate_task(test_loader_adult, num_classes_adult, sensitive_feature_info=adult_sensitive_feature_info)
+            simple_framework.evaluate_task(test_loader_adult, num_classes_adult, sensitive_feature_info=adult_sensitive_feature_info, task_id=1)
 
     # --- Task 2: Another Structured Data Task (COMPAS) ---
     print("\n--- Preparing Task 2: COMPAS Data ---")
-    train_loader_compas, test_loader_compas, input_dim_compas, num_sensitive_attrs_compas = get_compas_dataloader(batch_size=32)
-    num_classes_compas = 2 # Binary classification for recidivism
+    train_loader_compas, test_loader_compas, input_dim_compas, num_sensitive_attrs_compas = get_compas_dataloader(batch_size=Config.BATCH_SIZE, test_size=Config.COMPAS_TEST_SIZE, random_state=Config.RANDOM_STATE)
+    num_classes_compas = Config.NUM_CLASSES_COMPAS # Binary classification for recidivism
 
     # Define sensitive feature info for COMPAS
     compas_sensitive_feature_info = {
@@ -106,13 +97,13 @@ if __name__ == "__main__":
                 num_classes=num_classes_compas,
                 task_id=2,
                 train_loader=train_loader_compas,
-                epochs=5,
-                lambda_reg=0.1, # EWC regularization strength
+                epochs=Config.EPOCHS_PER_TASK,
+                lambda_reg=Config.LAMBDA_REG, # EWC regularization strength from config
                 use_ewc=True, use_lwf=False # Explicitly enable EWC, disable LwF
             )
-            rcl_framework_ewc.evaluate_task(test_loader_compas, num_classes_compas, sensitive_feature_info=compas_sensitive_feature_info)
+            rcl_framework_ewc.evaluate_task(test_loader_compas, num_classes_compas, sensitive_feature_info=compas_sensitive_feature_info, task_id=2)
 
-        # Run with LwF-Framework
+        # Run with LwF-Framework (using RCLTrainer with LwF enabled)
         with mlflow.start_run(run_name="COMPAS_Task2_LwF"):
             print("\n### Running COMPAS with LwF-Framework ###")
             mlflow.log_param("framework", "LwF")
@@ -122,11 +113,11 @@ if __name__ == "__main__":
                 num_classes=num_classes_compas,
                 task_id=2,
                 train_loader=train_loader_compas,
-                epochs=5,
-                alpha_lwf=1.0, # LwF distillation strength
+                epochs=Config.EPOCHS_PER_TASK,
+                alpha_lwf=Config.ALPHA_LWF, # LwF distillation strength from config
                 use_ewc=False, use_lwf=True # Explicitly enable LwF, disable EWC
             )
-            lwf_framework.evaluate_task(test_loader_compas, num_classes_compas, sensitive_feature_info=compas_sensitive_feature_info)
+            lwf_framework.evaluate_task(test_loader_compas, num_classes_compas, sensitive_feature_info=compas_sensitive_feature_info, task_id=2)
 
         # Run with SimpleTrainer (Baseline)
         with mlflow.start_run(run_name="COMPAS_Task2_Baseline"):
@@ -138,9 +129,80 @@ if __name__ == "__main__":
                 num_classes=num_classes_compas,
                 task_id=2,
                 train_loader=train_loader_compas,
-                epochs=5,
+                epochs=Config.EPOCHS_PER_TASK,
                 lambda_reg=0.0, alpha_lwf=0.0, use_ewc=False, use_lwf=False # No regularization
             )
-            simple_framework.evaluate_task(test_loader_compas, num_classes_compas, sensitive_feature_info=compas_sensitive_feature_info)
+            simple_framework.evaluate_task(test_loader_compas, num_classes_compas, sensitive_feature_info=compas_sensitive_feature_info, task_id=2)
+
+    # --- Task 3: Unstructured Data (FairFace - Simulated) ---
+    print("\n--- Preparing Task 3: FairFace Data (Simulated) ---")
+    train_loader_fairface, test_loader_fairface, input_shape_fairface, num_sensitive_attrs_fairface = get_fairface_dataloader(
+        batch_size=Config.BATCH_SIZE,
+        image_size=Config.FAIRFACE_IMAGE_SIZE,
+        num_channels=Config.FAIRFACE_NUM_CHANNELS,
+        num_classes=Config.NUM_CLASSES_FAIRFACE,
+        num_sensitive_groups=Config.FAIRFACE_NUM_SENSITIVE_GROUPS,
+        num_samples=Config.FAIRFACE_NUM_SAMPLES,
+        test_size=Config.FAIRFACE_TEST_SIZE,
+        random_state=Config.RANDOM_STATE
+    )
+    num_classes_fairface = Config.NUM_CLASSES_FAIRFACE
+
+    # Define sensitive feature info for FairFace (simulated, adjust based on actual data if integrated)
+    # Assuming sensitive groups are one-hot encoded and correspond to simple indices.
+    # For a real FairFace dataset, this would need to map actual race categories to indices.
+    fairface_sensitive_feature_info = {
+        'names': ['race_group'], # Generic name for simulated sensitive attribute
+        'privileged_groups': {'race_group': 0}, # Example: Group 0 is privileged
+        'unprivileged_groups': {'race_group': [1,2,3,4,5,6]} # Example: Other groups are unprivileged
+    }
+
+    if train_loader_fairface is not None:
+        # Run with RCL-Framework (EWC)
+        with mlflow.start_run(run_name="FairFace_Task3_RCL-EWC"):
+            print("\n### Running FairFace with RCL-Framework (EWC) ###")
+            mlflow.log_param("framework", "RCL-EWC")
+            rcl_framework_ewc.train_task(
+                data_type='unstructured',
+                input_shape=input_shape_fairface,
+                num_classes=num_classes_fairface,
+                task_id=3,
+                train_loader=train_loader_fairface,
+                epochs=Config.EPOCHS_PER_TASK,
+                lambda_reg=Config.LAMBDA_REG,
+                use_ewc=True, use_lwf=False
+            )
+            rcl_framework_ewc.evaluate_task(test_loader_fairface, num_classes_fairface, sensitive_feature_info=fairface_sensitive_feature_info, task_id=3)
+
+        # Run with LwF-Framework
+        with mlflow.start_run(run_name="FairFace_Task3_LwF"):
+            print("\n### Running FairFace with LwF-Framework ###")
+            mlflow.log_param("framework", "LwF")
+            lwf_framework.train_task(
+                data_type='unstructured',
+                input_shape=input_shape_fairface,
+                num_classes=num_classes_fairface,
+                task_id=3,
+                train_loader=train_loader_fairface,
+                epochs=Config.EPOCHS_PER_TASK,
+                alpha_lwf=Config.ALPHA_LWF,
+                use_ewc=False, use_lwf=True
+            )
+            lwf_framework.evaluate_task(test_loader_fairface, num_classes_fairface, sensitive_feature_info=fairface_sensitive_feature_info, task_id=3)
+
+        # Run with SimpleTrainer (Baseline)
+        with mlflow.start_run(run_name="FairFace_Task3_Baseline"):
+            print("\n### Running FairFace with SimpleTrainer (Baseline) ###")
+            mlflow.log_param("framework", "Baseline")
+            simple_framework.train_task(
+                data_type='unstructured',
+                input_shape=input_shape_fairface,
+                num_classes=num_classes_fairface,
+                task_id=3,
+                train_loader=train_loader_fairface,
+                epochs=Config.EPOCHS_PER_TASK,
+                lambda_reg=0.0, alpha_lwf=0.0, use_ewc=False, use_lwf=False
+            )
+            simple_framework.evaluate_task(test_loader_fairface, num_classes_fairface, sensitive_feature_info=fairface_sensitive_feature_info, task_id=3)
 
     print("\nFramework demonstration complete.")

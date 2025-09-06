@@ -5,6 +5,8 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import torch
 from torch.utils.data import Dataset, DataLoader
+import numpy as np # For dummy data generation
+from data.data_transforms import get_image_transforms # Import image transforms
 
 # Placeholder for data loading functions
 
@@ -51,7 +53,7 @@ def load_adult_census_data(test_size=0.2, random_state=42):
     except FileNotFoundError:
         print("Error: Adult Census files (adult.data, adult.test) not found in data/raw/")
         print("Please download them from UCI Machine Learning Repository and place them there.")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
 
     df = pd.concat([df_train, df_test], ignore_index=True)
 
@@ -159,7 +161,7 @@ def load_compas_data(test_size=0.2, random_state=42):
     except FileNotFoundError:
         print("Error: COMPAS file (compas-scores-two-years.csv) not found in data/raw/")
         print("Please download it and place it there.")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
 
     # Apply filters based on common practice in fairness literature
     df = df[(df['days_since_input'] <= 365 * 2) & 
@@ -248,18 +250,51 @@ def load_compas_data(test_size=0.2, random_state=42):
     print("COMPAS data loaded and preprocessed.")
     return X_train, X_test, y_train, y_test, s_train, s_test
 
-def load_fairface_data():
+def load_fairface_data(image_size=(64, 64), num_channels=3, num_classes=7, num_sensitive_groups=7, num_samples=1000, test_size=0.2, random_state=42):
     """
-    (Placeholder) Loads and preprocesses the FairFace dataset.
+    (Simulated) Loads and preprocesses the FairFace dataset by generating dummy data.
 
-    This function is a placeholder and would typically involve loading image data,
-    applying image transformations, and preparing it for a deep learning model.
+    This function simulates the loading and preprocessing of an image dataset like FairFace.
+    It generates random image tensors, corresponding labels, and sensitive attributes.
+    In a real-world scenario, this would involve reading image files and their annotations.
+
+    Args:
+        image_size (tuple, optional): The (height, width) of the simulated images. Defaults to (64, 64).
+        num_channels (int, optional): The number of color channels (e.g., 3 for RGB). Defaults to 3.
+        num_classes (int, optional): The number of output classes for the task. Defaults to 7 (for FairFace races/ethnicities).
+        num_sensitive_groups (int, optional): The number of sensitive attribute categories. Defaults to 7.
+        num_samples (int, optional): The total number of dummy samples to generate. Defaults to 1000.
+        test_size (float, optional): The proportion of the dataset to include in the test split.
+                                     Defaults to 0.2.
+        random_state (int, optional): Controls the shuffling applied to the data before splitting.
+                                      Defaults to 42.
 
     Returns:
-        tuple: Placeholder returns (None, None, None, None, None).
+        tuple: A tuple containing:
+            - X_train (torch.Tensor): Training image features (N, C, H, W).
+            - X_test (torch.Tensor): Testing image features (N, C, H, W).
+            - y_train (torch.Tensor): Training target labels.
+            - y_test (torch.Tensor): Testing target labels.
+            - s_train (torch.Tensor): Training sensitive attributes (one-hot encoded).
+            - s_test (torch.Tensor): Testing sensitive attributes (one-hot encoded).
     """
-    print("Loading FairFace data (placeholder).")
-    pass
+    print(f"Generating dummy FairFace data with image_size={image_size}, num_samples={num_samples}...")
+    np.random.seed(random_state)
+    torch.manual_seed(random_state)
+
+    # Simulate image data: (N, C, H, W)
+    X = torch.randn(num_samples, num_channels, image_size[0], image_size[1])
+    # Simulate labels
+    y = torch.randint(0, num_classes, (num_samples,))
+    # Simulate sensitive attributes (one-hot encoded)
+    s = torch.nn.functional.one_hot(torch.randint(0, num_sensitive_groups, (num_samples,)), num_classes=num_sensitive_groups).float()
+
+    X_train, X_test, y_train, y_test, s_train, s_test = train_test_split(
+        X, y, s, test_size=test_size, random_state=random_state
+    )
+
+    print("Dummy FairFace data generated and split.")
+    return X_train, X_test, y_train, y_test, s_train, s_test
 
 class AdultCensusDataset(Dataset):
     """
@@ -339,6 +374,59 @@ class CompasDataset(Dataset):
         """
         return self.X[idx], self.y[idx], self.s[idx]
 
+class FairFaceDataset(Dataset):
+    """
+    Custom PyTorch Dataset for the FairFace data.
+
+    This dataset wraps FairFace image features (X), target labels (y),
+    and sensitive attributes (s) into a format compatible with PyTorch DataLoaders.
+    It applies specified image transformations.
+    """
+    def __init__(self, X, y, s, transform=None):
+        """
+        Initializes the FairFaceDataset.
+
+        Args:
+            X (torch.Tensor): Image features tensor (N, C, H, W).
+            y (torch.Tensor): Target labels tensor.
+            s (torch.Tensor): Sensitive attributes tensor (one-hot encoded).
+            transform (torchvision.transforms.Compose, optional): Image transformations to apply.
+                                                                Defaults to None.
+        """
+        self.X = X
+        self.y = y
+        self.s = s
+        self.transform = transform
+
+    def __len__(self):
+        """
+        Returns the total number of samples in the dataset.
+        """
+        return len(self.y)
+
+    def __getitem__(self, idx):
+        """
+        Retrieves a sample from the dataset at the specified index.
+
+        Args:
+            idx (int): The index of the sample to retrieve.
+
+        Returns:
+            tuple: A tuple containing the transformed image, target label, and sensitive attributes.
+        """
+        image = self.X[idx]
+        label = self.y[idx]
+        sensitive_attr = self.s[idx]
+
+        if self.transform:
+            # For torchvision transforms, input should be PIL Image or torch.Tensor
+            # Since X is already a tensor, we can apply transforms directly if they expect tensor input
+            # or convert to PIL Image if needed by a specific transform.
+            # For simplicity, assuming transforms can handle tensor directly or will be handled by ToTensor() if not already there.
+            image = self.transform(image)
+
+        return image, label, sensitive_attr
+
 def get_adult_census_dataloader(batch_size=32, test_size=0.2, random_state=42):
     """
     Loads, preprocesses, and creates PyTorch DataLoaders for the Adult Census dataset.
@@ -414,5 +502,57 @@ def get_compas_dataloader(batch_size=32, test_size=0.2, random_state=42):
     print(f"COMPAS DataLoaders created. Input Dim: {input_dim}, Num Sensitive Attrs: {num_sensitive_attrs}")
 
     return train_loader, test_loader, input_dim, num_sensitive_attrs
+
+def get_fairface_dataloader(batch_size=32, image_size=(64, 64), num_channels=3, num_classes=7, num_sensitive_groups=7, num_samples=1000, test_size=0.2, random_state=42):
+    """
+    (Simulated) Loads, preprocesses, and creates PyTorch DataLoaders for the FairFace dataset.
+
+    This function simulates the data loading and preprocessing pipeline for an image dataset.
+    It generates dummy image data and creates DataLoaders with specified transformations.
+
+    Args:
+        batch_size (int, optional): The number of samples per batch. Defaults to 32.
+        image_size (tuple, optional): The (height, width) of the simulated images. Defaults to (64, 64).
+        num_channels (int, optional): The number of color channels (e.g., 3 for RGB). Defaults to 3.
+        num_classes (int, optional): The number of output classes for the task. Defaults to 7.
+        num_sensitive_groups (int, optional): The number of sensitive attribute categories. Defaults to 7.
+        num_samples (int, optional): The total number of dummy samples to generate. Defaults to 1000.
+        test_size (float, optional): The proportion of the dataset to include in the test split.
+                                     Defaults to 0.2.
+        random_state (int, optional): Controls the shuffling applied to the data before splitting.
+                                      Defaults to 42.
+
+    Returns:
+        tuple: A tuple containing:
+            - train_loader (torch.utils.data.DataLoader): DataLoader for the training set.
+            - test_loader (torch.utils.data.DataLoader): DataLoader for the testing set.
+            - input_shape (tuple): Shape of the input image data (channels, height, width).
+            - num_sensitive_attrs (int): Number of sensitive attribute columns (one-hot encoded).
+    """
+    X_train, X_test, y_train, y_test, s_train, s_test = load_fairface_data(
+        image_size=image_size,
+        num_channels=num_channels,
+        num_classes=num_classes,
+        num_sensitive_groups=num_sensitive_groups,
+        num_samples=num_samples,
+        test_size=test_size,
+        random_state=random_state
+    )
+
+    # Get image transforms
+    image_transforms = get_image_transforms(image_size=image_size)
+
+    train_dataset = FairFaceDataset(X_train, y_train, s_train, transform=image_transforms)
+    test_dataset = FairFaceDataset(X_test, y_test, s_test, transform=image_transforms)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    input_shape = (num_channels, image_size[0], image_size[1])
+    num_sensitive_attrs = s_train.shape[1] if len(s_train.shape) > 1 else 1
+
+    print(f"FairFace DataLoaders created. Input Shape: {input_shape}, Num Sensitive Attrs: {num_sensitive_attrs}")
+
+    return train_loader, test_loader, input_shape, num_sensitive_attrs
 
 # Add more data loading functions as needed
