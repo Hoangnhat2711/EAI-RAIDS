@@ -1,5 +1,6 @@
 """
 Audit Logger - Ghi nhận tất cả các quyết định và hành động của AI
+Hỗ trợ multiple backends thông qua Strategy Pattern
 """
 
 import json
@@ -12,25 +13,47 @@ import logging
 class AuditLogger:
     """
     Logger để ghi nhận audit trail cho AI system
+    
+    Hỗ trợ multiple handlers:
+    - FileLogHandler (default)
+    - PostgreSQLHandler
+    - ElasticsearchHandler
+    - CloudLoggerHandler
     """
     
     def __init__(self, log_dir: str = 'audit_logs', 
-                 responsible_ai_framework: Optional[Any] = None):
+                 responsible_ai_framework: Optional[Any] = None,
+                 handlers: Optional[List[Any]] = None):
         """
         Khởi tạo Audit Logger
         
         Args:
-            log_dir: Thư mục lưu audit logs
+            log_dir: Thư mục lưu audit logs (cho FileHandler)
             responsible_ai_framework: Instance của ResponsibleAI
+            handlers: List of AbstractLogHandler instances (None = dùng FileHandler)
         """
         self.log_dir = log_dir
         self.rai = responsible_ai_framework
         self.session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # Tạo thư mục nếu chưa có
-        os.makedirs(log_dir, exist_ok=True)
+        # Setup handlers
+        if handlers is None:
+            # Default: FileLogHandler
+            from audit.handlers import FileLogHandler
+            
+            os.makedirs(log_dir, exist_ok=True)
+            self.handlers = [FileLogHandler({
+                'log_dir': log_dir,
+                'log_file': f'audit_log_{self.session_id}.jsonl'
+            })]
+        else:
+            self.handlers = handlers
         
-        # File paths
+        # Connect all handlers
+        for handler in self.handlers:
+            handler.connect()
+        
+        # File paths (for backward compatibility)
         self.current_log_file = os.path.join(
             log_dir, 
             f'audit_log_{self.session_id}.jsonl'
@@ -40,6 +63,7 @@ class AuditLogger:
         self._setup_logging()
         
         self.logger.info(f"Audit Logger initialized. Session: {self.session_id}")
+        self.logger.info(f"Active handlers: {[type(h).__name__ for h in self.handlers]}")
     
     def _setup_logging(self):
         """Setup Python logging"""
@@ -214,12 +238,14 @@ class AuditLogger:
         self.logger.error(f"Error logged: {error_type} - {error_message}")
     
     def _write_to_file(self, event: Dict):
-        """Ghi event vào file"""
-        try:
-            with open(self.current_log_file, 'a') as f:
-                f.write(json.dumps(event) + '\n')
-        except Exception as e:
-            self.logger.error(f"Failed to write audit log: {e}")
+        """Ghi event vào tất cả handlers"""
+        for handler in self.handlers:
+            try:
+                success = handler.write_event(event)
+                if not success:
+                    self.logger.warning(f"Failed to write to {type(handler).__name__}")
+            except Exception as e:
+                self.logger.error(f"Error in {type(handler).__name__}: {e}")
     
     def read_logs(self, event_type: Optional[str] = None,
                  limit: Optional[int] = None) -> List[Dict]:
@@ -329,6 +355,31 @@ class AuditLogger:
         
         self.logger.info(f"Logs exported to {output_file}")
     
+    def add_handler(self, handler: Any):
+        """
+        Thêm handler mới
+        
+        Args:
+            handler: AbstractLogHandler instance
+        """
+        if handler.connect():
+            self.handlers.append(handler)
+            self.logger.info(f"Added handler: {type(handler).__name__}")
+        else:
+            self.logger.error(f"Failed to add handler: {type(handler).__name__}")
+    
+    def close_all_handlers(self):
+        """Đóng tất cả handlers"""
+        for handler in self.handlers:
+            try:
+                handler.close()
+            except Exception as e:
+                self.logger.error(f"Error closing {type(handler).__name__}: {e}")
+    
+    def __del__(self):
+        """Cleanup khi object bị destroy"""
+        self.close_all_handlers()
+    
     def __repr__(self) -> str:
-        return f"AuditLogger(session={self.session_id}, log_dir={self.log_dir})"
+        return f"AuditLogger(session={self.session_id}, handlers={len(self.handlers)})"
 
