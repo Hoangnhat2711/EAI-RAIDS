@@ -101,18 +101,128 @@ class MLflowIntegration:
     def log_model(self, model: Any, artifact_path: str = "model",
                  signature: Optional[Any] = None):
         """
-        Log model to MLflow
+        Log model to MLflow using Adapter Pattern
+        
+        Ensures consistency with framework's BaseModelAdapter architecture
         
         Args:
-            model: Trained model
+            model: Trained model or ResponsibleModelWrapper
             artifact_path: Path trong artifact store
             signature: Model signature (input/output schema)
         """
         if not self.mlflow_available:
             return
         
-        # Detect model type
+        # Check if it's a ResponsibleModelWrapper
+        try:
+            from core.model_wrapper import ResponsibleModelWrapper
+            
+            if isinstance(model, ResponsibleModelWrapper):
+                # Extract underlying model
+                actual_model = model.model
+                
+                # Log metadata
+                self.log_params({
+                    'wrapped_model': True,
+                    'model_type': type(actual_model).__name__
+                })
+                
+                # Use adapter if available
+                if hasattr(model, 'adapter') and model.adapter is not None:
+                    self._log_via_adapter(model.adapter, artifact_path, signature)
+                    return
+                else:
+                    # Fall back to unwrapped model
+                    model = actual_model
+        except ImportError:
+            pass
+        
+        # Try to use BaseModelAdapter
+        try:
+            from core.adapters import BaseModelAdapter, SklearnAdapter, PyTorchAdapter, TensorFlowAdapter
+            
+            # Check if model is already an adapter
+            if isinstance(model, BaseModelAdapter):
+                self._log_via_adapter(model, artifact_path, signature)
+                return
+            
+            # Try to create adapter
+            adapter = self._create_adapter_for_model(model)
+            if adapter is not None:
+                self._log_via_adapter(adapter, artifact_path, signature)
+                return
+        except ImportError:
+            pass
+        
+        # Fallback: Use MLflow's built-in logging
+        self._log_via_mlflow_builtin(model, artifact_path, signature)
+    
+    def _create_adapter_for_model(self, model: Any) -> Optional[Any]:
+        """Create appropriate adapter for model"""
+        try:
+            from core.adapters import SklearnAdapter, PyTorchAdapter, TensorFlowAdapter
+            
+            model_type = str(type(model))
+            
+            if 'sklearn' in model_type:
+                return SklearnAdapter(model)
+            elif 'torch' in model_type:
+                # PyTorch adapter needs loss_fn and optimizer
+                # For logging, we can create without them
+                warnings.warn("PyTorch adapter created without loss_fn/optimizer for logging")
+                return PyTorchAdapter(model, loss_fn=None, optimizer=None)
+            elif 'tensorflow' in model_type or 'keras' in model_type:
+                return TensorFlowAdapter(model)
+        except Exception as e:
+            warnings.warn(f"Could not create adapter: {e}")
+        
+        return None
+    
+    def _log_via_adapter(self, adapter: Any, artifact_path: str, signature: Optional[Any]):
+        """
+        Log model via BaseModelAdapter
+        
+        Uses adapter's save/load methods for consistency
+        """
+        import tempfile
+        import os
+        
+        # Save model using adapter
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_path = os.path.join(tmpdir, "model")
+            
+            # Use adapter's save method if available
+            if hasattr(adapter, 'save_model'):
+                adapter.save_model(model_path)
+            else:
+                # Fallback to pickle
+                import pickle
+                with open(model_path, 'wb') as f:
+                    pickle.dump(adapter.model, f)
+            
+            # Log to MLflow
+            self.mlflow.log_artifact(model_path, artifact_path)
+            
+            # Log adapter metadata
+            self.log_params({
+                'adapter_type': type(adapter).__name__,
+                'framework': adapter.get_framework_info()['framework']
+            })
+        
+        print(f"✓ Model logged via {type(adapter).__name__}")
+    
+    def _log_via_mlflow_builtin(self, model: Any, artifact_path: str, signature: Optional[Any]):
+        """
+        Fallback: Use MLflow's built-in logging
+        
+        Only used when adapters are not available
+        """
         model_type = type(model).__name__
+        
+        warnings.warn(
+            f"Logging {model_type} without adapter. "
+            f"Consider using ResponsibleModelWrapper for consistency."
+        )
         
         if 'sklearn' in str(type(model)):
             self.mlflow.sklearn.log_model(model, artifact_path, signature=signature)
@@ -121,8 +231,16 @@ class MLflowIntegration:
         elif 'tensorflow' in str(type(model)) or 'keras' in str(type(model)):
             self.mlflow.tensorflow.log_model(model, artifact_path, signature=signature)
         else:
-            warnings.warn(f"Unknown model type: {model_type}, using generic logging")
-            self.mlflow.log_artifact(model, artifact_path)
+            # Generic logging
+            import pickle
+            import tempfile
+            import os
+            
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model_path = os.path.join(tmpdir, "model.pkl")
+                with open(model_path, 'wb') as f:
+                    pickle.dump(model, f)
+                self.mlflow.log_artifact(model_path, artifact_path)
     
     def log_fairness_metrics(self, fairness_results: Dict[str, Any]):
         """Log fairness metrics"""

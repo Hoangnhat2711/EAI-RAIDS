@@ -362,8 +362,7 @@ class CausalFeatureSelector:
         try:
             from causallearn.search.ConstraintBased.PC import pc
         except ImportError:
-            warnings.warn("causal-learn not installed, using correlation-based fallback")
-            self._fallback_correlation(data)
+            self._raise_library_error("causal-learn")
             return
         
         # Run PC algorithm
@@ -389,8 +388,7 @@ class CausalFeatureSelector:
         try:
             from lingam import DirectLiNGAM
         except ImportError:
-            warnings.warn("lingam not installed, using correlation-based fallback")
-            self._fallback_correlation(data)
+            self._raise_library_error("lingam")
             return
         
         model = DirectLiNGAM()
@@ -408,16 +406,27 @@ class CausalFeatureSelector:
             for i in range(outcome_position)
         ]
     
-    def _fallback_correlation(self, data: pd.DataFrame):
-        """Fallback: Use correlation (not causal!)"""
-        warnings.warn("Using correlation-based selection (NOT causal)")
+    def _raise_library_error(self, library_name: str):
+        """
+        Raise error instead of falling back to correlation
         
-        corr = data.corr()[self.outcome].abs()
-        corr = corr.drop(self.outcome)
+        CRITICAL: Correlation is NOT causation!
+        We must NOT fall back to correlation-based methods.
+        """
+        from core.data_converter import CausalInferenceError
         
-        # Select top correlated features
-        threshold = 0.3
-        self.selected_features = list(corr[corr > threshold].index)
+        raise CausalInferenceError(
+            f"❌ CRITICAL: {library_name} library not installed!\n\n"
+            f"Causal feature selection requires proper causal discovery methods.\n"
+            f"We CANNOT fall back to correlation-based selection because:\n"
+            f"  'Correlation is NOT Causation'\n\n"
+            f"SOLUTION:\n"
+            f"  pip install {library_name.lower().replace(' ', '-')}\n\n"
+            f"Available methods:\n"
+            f"  - PC Algorithm: pip install causal-learn\n"
+            f"  - LiNGAM: pip install lingam\n\n"
+            f"DO NOT use correlation-based feature selection for causal inference!"
+        )
 
 
 def estimate_causal_effect(data: pd.DataFrame,

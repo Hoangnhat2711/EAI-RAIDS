@@ -399,26 +399,151 @@ class BootstrapCI:
         }
 
 
+class NormalityTest:
+    """
+    Test for normality assumptions
+    
+    Critical for choosing appropriate statistical tests
+    """
+    
+    @staticmethod
+    def shapiro_wilk(data: np.ndarray, alpha: float = 0.05) -> Dict[str, Any]:
+        """
+        Shapiro-Wilk test for normality
+        
+        H0: Data is normally distributed
+        H1: Data is not normally distributed
+        
+        Args:
+            data: Data array
+            alpha: Significance level
+        
+        Returns:
+            Test results
+        """
+        if len(data) < 3:
+            return {
+                'test': 'shapiro_wilk',
+                'statistic': None,
+                'p_value': None,
+                'normal': None,
+                'warning': 'Insufficient samples for Shapiro-Wilk test (n < 3)'
+            }
+        
+        statistic, p_value = stats.shapiro(data)
+        
+        return {
+            'test': 'shapiro_wilk',
+            'statistic': statistic,
+            'p_value': p_value,
+            'normal': p_value >= alpha,
+            'alpha': alpha
+        }
+    
+    @staticmethod
+    def anderson_darling(data: np.ndarray) -> Dict[str, Any]:
+        """
+        Anderson-Darling test for normality
+        
+        More powerful than Shapiro-Wilk for larger samples
+        
+        Args:
+            data: Data array
+        
+        Returns:
+            Test results
+        """
+        result = stats.anderson(data, dist='norm')
+        
+        # Check at 5% significance level (index 2)
+        critical_value = result.critical_values[2]
+        is_normal = result.statistic < critical_value
+        
+        return {
+            'test': 'anderson_darling',
+            'statistic': result.statistic,
+            'critical_value_5pct': critical_value,
+            'normal': is_normal,
+            'all_critical_values': result.critical_values,
+            'significance_levels': result.significance_level
+        }
+    
+    @staticmethod
+    def check_assumptions(scores_a: np.ndarray, scores_b: np.ndarray,
+                         alpha: float = 0.05) -> Dict[str, Any]:
+        """
+        Check assumptions for parametric tests
+        
+        Checks:
+        1. Normality (Shapiro-Wilk)
+        2. Equal variances (Levene's test)
+        
+        Args:
+            scores_a: Scores from model A
+            scores_b: Scores from model B
+            alpha: Significance level
+        
+        Returns:
+            Assumption check results with recommendations
+        """
+        # Normality tests
+        normal_a = NormalityTest.shapiro_wilk(scores_a, alpha)
+        normal_b = NormalityTest.shapiro_wilk(scores_b, alpha)
+        
+        both_normal = (normal_a.get('normal', False) and 
+                      normal_b.get('normal', False))
+        
+        # Equal variance test (Levene's test)
+        levene_stat, levene_p = stats.levene(scores_a, scores_b)
+        equal_variances = levene_p >= alpha
+        
+        # Recommendations
+        if both_normal and equal_variances:
+            recommendation = "✓ Use parametric test (t-test with equal_var=True)"
+        elif both_normal and not equal_variances:
+            recommendation = "✓ Use parametric test (Welch's t-test with equal_var=False)"
+        else:
+            recommendation = "⚠ Use non-parametric test (Mann-Whitney U or Wilcoxon)"
+        
+        return {
+            'normality_a': normal_a,
+            'normality_b': normal_b,
+            'both_normal': both_normal,
+            'equal_variances': {
+                'test': 'levene',
+                'statistic': levene_stat,
+                'p_value': levene_p,
+                'equal': equal_variances,
+                'alpha': alpha
+            },
+            'recommendation': recommendation,
+            'use_parametric': both_normal,
+            'use_equal_var': equal_variances if both_normal else None
+        }
+
+
 class ModelComparison:
     """
     Comprehensive model comparison with statistical testing
     """
     
-    def __init__(self, alpha: float = 0.05):
+    def __init__(self, alpha: float = 0.05, check_assumptions: bool = True):
         """
         Khởi tạo Model Comparison
         
         Args:
             alpha: Significance level
+            check_assumptions: Automatically check test assumptions
         """
         self.alpha = alpha
         self.sig_test = SignificanceTest(alpha)
+        self.check_assumptions = check_assumptions
     
     def compare_two_models(self, scores_a: np.ndarray, scores_b: np.ndarray,
                           model_a_name: str = "Model A",
                           model_b_name: str = "Model B",
                           paired: bool = True,
-                          parametric: bool = True) -> Dict[str, Any]:
+                          parametric: Optional[bool] = None) -> Dict[str, Any]:
         """
         Compare two models comprehensively
         
@@ -429,10 +554,24 @@ class ModelComparison:
             model_b_name: Name of model B
             paired: Whether data is paired
             parametric: Use parametric test (t-test) or non-parametric (Mann-Whitney/Wilcoxon)
+                       If None, automatically decide based on normality tests
         
         Returns:
             Comprehensive comparison
         """
+        # Check assumptions if requested
+        assumption_results = None
+        if self.check_assumptions and parametric is None:
+            assumption_results = NormalityTest.check_assumptions(scores_a, scores_b, self.alpha)
+            parametric = assumption_results['use_parametric']
+            
+            print(f"📊 Assumption Check:")
+            print(f"  Normality A: {'✓' if assumption_results['normality_a'].get('normal') else '✗'} "
+                  f"(p={assumption_results['normality_a'].get('p_value', 'N/A')})")
+            print(f"  Normality B: {'✓' if assumption_results['normality_b'].get('normal') else '✗'} "
+                  f"(p={assumption_results['normality_b'].get('p_value', 'N/A')})")
+            print(f"  {assumption_results['recommendation']}")
+        
         # Descriptive statistics
         desc_a = {
             'mean': np.mean(scores_a),
@@ -484,6 +623,7 @@ class ModelComparison:
             'model_b': model_b_name,
             'descriptives_a': desc_a,
             'descriptives_b': desc_b,
+            'assumption_check': assumption_results,
             'statistical_test': test_results,
             'difference_ci': diff_ci,
             'winner': winner,

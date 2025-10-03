@@ -6,6 +6,7 @@ from .responsible_ai import ResponsibleAI
 from .model_wrapper import ResponsibleModelWrapper
 from .validator import ComplianceValidator
 from .mlops_integration import MLflowIntegration, DVCIntegration, ExperimentTracker
+from .data_converter import DataConverter, CausalInferenceError, CausalDataValidator
 
 __all__ = [
     'ResponsibleAI',
@@ -13,6 +14,9 @@ __all__ = [
     'ComplianceValidator',
     'MLflowIntegration',
     'DVCIntegration',
-    'ExperimentTracker'
+    'ExperimentTracker',
+    'DataConverter',
+    'CausalInferenceError',
+    'CausalDataValidator'
 ]
 
