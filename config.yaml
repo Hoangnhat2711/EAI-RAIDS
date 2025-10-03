@@ -1,36 +1,56 @@
-# config.yaml
+# Responsible AI Framework Configuration
 
-# General settings
-device: "cuda" # "cuda" if torch.cuda.is_available() else "cpu"
-random_state: 42
-num_classes_adult: 2
-num_classes_compas: 2
-num_classes_fairface: 7
+# Nguyên tắc cốt lõi
+principles:
+  fairness: true
+  transparency: true
+  privacy: true
+  accountability: true
+  explainability: true
+  robustness: true
 
-# Training settings
-learning_rate: 0.001
-batch_size: 32
-epochs_per_task: 5
+# Cấu hình Fairness
+fairness:
+  metrics:
+    - demographic_parity
+    - equalized_odds
+    - equal_opportunity
+    - disparate_impact
+  sensitive_attributes:
+    - gender
+    - age
+    - race
+    - ethnicity
+  threshold: 0.8  # Ngưỡng chấp nhận cho fairness metrics
 
-# EWC (Elastic Weight Consolidation) settings
-lambda_reg: 0.1
+# Cấu hình Privacy
+privacy:
+  differential_privacy:
+    enabled: true
+    epsilon: 1.0  # Privacy budget
+    delta: 1e-5
+  data_anonymization: true
+  pii_detection: true
 
-# LwF (Learning without Forgetting) settings
-alpha_lwf: 1.0
-temperature_lwf: 2.0
+# Cấu hình Explainability
+explainability:
+  methods:
+    - shap
+    - lime
+    - feature_importance
+  generate_reports: true
+  
+# Cấu hình Audit
+audit:
+  enabled: true
+  log_predictions: true
+  log_decisions: true
+  retention_days: 90
 
-# Data settings
-adult_test_size: 0.2
-compas_test_size: 0.2
+# Cấu hình Monitoring
+monitoring:
+  model_drift_detection: true
+  performance_tracking: true
+  bias_monitoring: true
+  alert_threshold: 0.1
 
-# FairFace (Image Data) settings
-fairface_image_size:
-  - 64
-  - 64
-fairface_num_channels: 3
-fairface_num_sensitive_groups: 7
-fairface_num_samples: 1000
-fairface_test_size: 0.2
-
-# MLflow settings
-# tracking_uri: "http://localhost:5000"
