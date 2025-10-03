@@ -1,0 +1,159 @@
+@software{eai_raids_2025,
+  title     = {EAI-RAIDS: Enterprise Responsible AI Detection \& Security System},
+  author    = {EAI-RAIDS Team},
+  year      = {2025},
+  month     = {October},
+  version   = {3.1.0},
+  url       = {https://github.com/Hoangnhat2711/EAI-RAIDS},
+  doi       = {10.5281/zenodo.XXXXXXX}, % Add DOI after Zenodo registration
+  abstract  = {A world-class framework for Responsible AI featuring fairness in-processing, certified robustness, causal inference, differential privacy, and MLOps integration. Implements 16+ SOTA research papers and provides mathematical guarantees for AI safety.},
+  keywords  = {Responsible AI, Fairness, Robustness, Privacy, Explainability, MLOps, Certified Defense, Causal Inference, Differential Privacy, DP-SGD},
+  license   = {MIT}
+}
+
+% If using specific modules, cite relevant papers:
+
+% Fairness - Adversarial Debiasing
+@inproceedings{zhang2018mitigating,
+  title     = {Mitigating Unwanted Biases with Adversarial Learning},
+  author    = {Zhang, Brian Hu and Lemoine, Blake and Mitchell, Margaret},
+  booktitle = {Proceedings of the 2018 AAAI/ACM Conference on AI, Ethics, and Society},
+  pages     = {335--340},
+  year      = {2018},
+  series    = {AIES '18}
+}
+
+% Fairness - Prejudice Remover
+@inproceedings{kamishima2012fairness,
+  title     = {Fairness-Aware Classifier with Prejudice Remover Regularizer},
+  author    = {Kamishima, Toshihiro and Akaho, Shotaro and Asoh, Hideki and Sakuma, Jun},
+  booktitle = {Joint European Conference on Machine Learning and Knowledge Discovery in Databases},
+  pages     = {35--50},
+  year      = {2012},
+  organization = {Springer}
+}
+
+% Fairness - Fair Classification
+@inproceedings{agarwal2018reductions,
+  title     = {A Reductions Approach to Fair Classification},
+  author    = {Agarwal, Alekh and Beygelzimer, Alina and Dud{\'\i}k, Miroslav and Langford, John and Wallach, Hanna},
+  booktitle = {International Conference on Machine Learning},
+  pages     = {60--69},
+  year      = {2018},
+  organization = {PMLR}
+}
+
+% Robustness - Randomized Smoothing (CRITICAL)
+@inproceedings{cohen2019certified,
+  title     = {Certified Adversarial Robustness via Randomized Smoothing},
+  author    = {Cohen, Jeremy and Rosenfeld, Elan and Kolter, Zico},
+  booktitle = {International Conference on Machine Learning},
+  pages     = {1310--1320},
+  year      = {2019},
+  organization = {PMLR}
+}
+
+% Robustness - IBP
+@article{gowal2018effectiveness,
+  title   = {On the Effectiveness of Interval Bound Propagation for Training Verifiably Robust Models},
+  author  = {Gowal, Sven and Dvijotham, Krishnamurthy and Stanforth, Robert and Bunel, Rudy and Qin, Chongli and Uesato, Jonathan and Arandjelovic, Relja and Mann, Timothy and Kohli, Pushmeet},
+  journal = {arXiv preprint arXiv:1810.12715},
+  year    = {2018}
+}
+
+% Robustness - FGSM
+@inproceedings{goodfellow2015explaining,
+  title     = {Explaining and Harnessing Adversarial Examples},
+  author    = {Goodfellow, Ian J and Shlens, Jonathon and Szegedy, Christian},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2015}
+}
+
+% Robustness - PGD
+@inproceedings{madry2018towards,
+  title     = {Towards Deep Learning Models Resistant to Adversarial Attacks},
+  author    = {Madry, Aleksander and Makelov, Aleksandar and Schmidt, Ludwig and Tsipras, Dimitris and Vladu, Adrian},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2018}
+}
+
+% Privacy - DP-SGD (CRITICAL)
+@inproceedings{abadi2016deep,
+  title     = {Deep Learning with Differential Privacy},
+  author    = {Abadi, Martin and Chu, Andy and Goodfellow, Ian and McMahan, H Brendan and Mironov, Ilya and Talwar, Kunal and Zhang, Li},
+  booktitle = {Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications Security},
+  pages     = {308--318},
+  year      = {2016},
+  series    = {CCS '16}
+}
+
+% Privacy - Differential Privacy
+@article{dwork2006differential,
+  title   = {Differential Privacy},
+  author  = {Dwork, Cynthia},
+  journal = {Encyclopedia of Cryptography and Security},
+  pages   = {338--340},
+  year    = {2006},
+  publisher = {Springer}
+}
+
+% Explainability - Counterfactual
+@article{wachter2017counterfactual,
+  title     = {Counterfactual Explanations Without Opening the Black Box: Automated Decisions and the GDPR},
+  author    = {Wachter, Sandra and Mittelstadt, Brent and Russell, Chris},
+  journal   = {Harvard Journal of Law \& Technology},
+  volume    = {31},
+  number    = {2},
+  pages     = {841--887},
+  year      = {2017}
+}
+
+% Explainability - SHAP
+@inproceedings{lundberg2017unified,
+  title     = {A Unified Approach to Interpreting Model Predictions},
+  author    = {Lundberg, Scott M and Lee, Su-In},
+  booktitle = {Advances in Neural Information Processing Systems},
+  pages     = {4765--4774},
+  year      = {2017}
+}
+
+% Explainability - LIME
+@inproceedings{ribeiro2016should,
+  title     = {"Why Should I Trust You?" Explaining the Predictions of Any Classifier},
+  author    = {Ribeiro, Marco Tulio and Singh, Sameer and Guestrin, Carlos},
+  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  pages     = {1135--1144},
+  year      = {2016},
+  series    = {KDD '16}
+}
+
+% Causal Inference - Pearl
+@book{pearl2009causality,
+  title     = {Causality: Models, Reasoning, and Inference},
+  author    = {Pearl, Judea},
+  year      = {2009},
+  edition   = {2nd},
+  publisher = {Cambridge University Press}
+}
+
+% Causal Inference - DoWhy
+@article{sharma2020dowhy,
+  title   = {DoWhy: An End-to-End Library for Causal Inference},
+  author  = {Sharma, Amit and Kiciman, Emre},
+  journal = {arXiv preprint arXiv:2011.04216},
+  year    = {2020}
+}
+
+% Causal Inference - CausalML
+@misc{chen2020causalml,
+  title  = {CausalML: Python Package for Causal Machine Learning},
+  author = {Chen, Huigang and Harinen, Totte and Lee, Jeong-Yoon and Yung, Mike and Zhao, Zhenyu},
+  year   = {2020},
+  url    = {https://github.com/uber/causalml}
+}
+
+% Example usage in a paper:
+% \cite{eai_raids_2025,cohen2019certified,abadi2016deep,zhang2018mitigating}
+% For full fairness module: \cite{eai_raids_2025,zhang2018mitigating,kamishima2012fairness,agarwal2018reductions}
+% For full robustness module: \cite{eai_raids_2025,cohen2019certified,gowal2018effectiveness,goodfellow2015explaining,madry2018towards}
+
