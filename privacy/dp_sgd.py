@@ -62,7 +62,12 @@ class DPSGDTrainer:
                            criterion, epochs: int = 10,
                            device: str = 'cpu') -> Dict[str, List]:
         """
-        Train PyTorch model với DP-SGD
+        ⚠️ DEPRECATED - DO NOT USE ⚠️
+        
+        This manual DP-SGD training is MATHEMATICALLY INCORRECT.
+        
+        Use OpacusIntegration.train_private_model() instead, which uses
+        the production-ready Opacus library with correct per-sample gradient clipping.
         
         Args:
             model: PyTorch model
@@ -74,81 +79,52 @@ class DPSGDTrainer:
         
         Returns:
             Training history
+        
+        Raises:
+            NotImplementedError: Use OpacusIntegration instead
         """
-        try:
-            import torch
-        except ImportError:
-            raise ImportError("PyTorch not installed")
-        
-        model = model.to(device)
-        model.train()
-        
-        history = {
-            'loss': [],
-            'privacy_spent': []
-        }
-        
-        for epoch in range(epochs):
-            epoch_loss = 0
-            
-            for batch_idx, (data, target) in enumerate(train_loader):
-                data, target = data.to(device), target.to(device)
-                
-                optimizer.zero_grad()
-                
-                # Forward pass
-                output = model(data)
-                loss = criterion(output, target)
-                
-                # Backward pass
-                loss.backward()
-                
-                # DP-SGD: Clip và add noise to gradients
-                self._clip_and_noise_pytorch_gradients(model, len(data))
-                
-                # Optimizer step
-                optimizer.step()
-                
-                epoch_loss += loss.item()
-                self.steps += 1
-            
-            avg_loss = epoch_loss / len(train_loader)
-            privacy_spent = self._compute_privacy_spent(len(train_loader.dataset), len(train_loader))
-            
-            history['loss'].append(avg_loss)
-            history['privacy_spent'].append(privacy_spent)
-            
-            print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, "
-                  f"Privacy: ε={privacy_spent['epsilon']:.2f}, δ={privacy_spent['delta']:.2e}")
-        
-        return history
+        raise NotImplementedError(
+            "❌ This manual DP-SGD implementation is INCORRECT!\n\n"
+            "Use OpacusIntegration instead:\n\n"
+            "from privacy.dp_sgd import OpacusIntegration\n\n"
+            "opacus = OpacusIntegration(epsilon=1.0, delta=1e-5, max_grad_norm=1.0)\n"
+            "model, optimizer, privacy_engine = opacus.make_private(\n"
+            "    model, optimizer, train_loader, epochs=epochs\n"
+            ")\n"
+            "history = opacus.train_private_model(\n"
+            "    model, optimizer, train_loader, criterion, epochs, device\n"
+            ")\n"
+        )
     
     def _clip_and_noise_pytorch_gradients(self, model, batch_size: int):
         """
-        Clip và add noise to PyTorch gradients
+        ⚠️ DEPRECATED - DO NOT USE ⚠️
+        
+        This manual implementation is MATHEMATICALLY INCORRECT for DP-SGD.
+        
+        CRITICAL ISSUE: DP-SGD requires PER-SAMPLE gradient clipping BEFORE
+        aggregation. Clipping aggregate gradients does NOT provide privacy
+        guarantees as claimed in Abadi et al. (2016).
+        
+        SOLUTION: Use OpacusIntegration or TensorFlowPrivacyIntegration instead.
         
         Args:
             model: PyTorch model
             batch_size: Batch size
+        
+        Raises:
+            NotImplementedError: This method should not be used
         """
-        import torch
-        
-        # 1. Clip gradients per-sample
-        # Note: Simplified - trong thực tế cần per-sample gradient
-        torch.nn.utils.clip_grad_norm_(model.parameters(), self.max_grad_norm)
-        
-        # 2. Add Gaussian noise
-        noise_scale = self.noise_multiplier * self.max_grad_norm / batch_size
-        
-        for param in model.parameters():
-            if param.grad is not None:
-                noise = torch.normal(
-                    mean=0,
-                    std=noise_scale,
-                    size=param.grad.shape,
-                    device=param.grad.device
-                )
-                param.grad += noise
+        raise NotImplementedError(
+            "❌ CRITICAL ERROR: Manual DP-SGD implementation is mathematically incorrect!\n\n"
+            "DP-SGD requires PER-SAMPLE gradient clipping, not aggregate gradient clipping.\n"
+            "This implementation does NOT provide the claimed (ε, δ)-DP guarantees.\n\n"
+            "SOLUTION: Use OpacusIntegration for PyTorch:\n"
+            "  from privacy.dp_sgd import OpacusIntegration\n"
+            "  opacus = OpacusIntegration(epsilon=1.0, delta=1e-5)\n"
+            "  model, optimizer, dataloader = opacus.make_private(model, optimizer, dataloader)\n\n"
+            "Reference: Abadi et al. 'Deep Learning with Differential Privacy' (2016)"
+        )
     
     def train_tensorflow_model(self, model, train_data, train_labels,
                               epochs: int = 10, batch_size: int = 32,

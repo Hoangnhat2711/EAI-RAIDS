@@ -20,17 +20,33 @@ class AttackGenerator:
     Mục đích: Kiểm tra độ vững chắc của model trước các tấn công
     """
     
-    def __init__(self, model: Any, loss_fn: Optional[Callable] = None):
+    def __init__(self, model: Any, loss_fn: Optional[Callable] = None,
+                 use_analytical_gradients: bool = True):
         """
         Khởi tạo Attack Generator
         
         Args:
             model: Model cần kiểm tra
             loss_fn: Loss function (nếu cần cho gradient-based attacks)
+            use_analytical_gradients: Use GradientWrapper for accurate gradients
         """
         self.model = model
         self.loss_fn = loss_fn
         self.attack_history = []
+        
+        # Initialize GradientWrapper for accurate gradient computation
+        self.use_analytical = use_analytical_gradients
+        if self.use_analytical:
+            try:
+                from core.adapters import GradientWrapper
+                self.grad_wrapper = GradientWrapper(model)
+                print(f"✓ Using {self.grad_wrapper}")
+            except ImportError:
+                print("⚠ GradientWrapper not available, using numerical approximation")
+                self.grad_wrapper = None
+                self.use_analytical = False
+        else:
+            self.grad_wrapper = None
     
     def fgsm_attack(self, X: np.ndarray, y: np.ndarray,
                    epsilon: float = 0.3) -> Tuple[np.ndarray, Dict]:
@@ -201,9 +217,26 @@ class AttackGenerator:
         """
         Tính gradients of loss w.r.t input
         
-        Note: Simplified implementation - trong thực tế cần gradient từ model
+        Uses analytical gradients from GradientWrapper if available,
+        falls back to numerical approximation
+        
+        Args:
+            X: Input
+            y: Target labels
+        
+        Returns:
+            Gradients array
         """
-        # Numerical gradient approximation
+        # Use GradientWrapper if available (RECOMMENDED)
+        if self.grad_wrapper is not None:
+            try:
+                gradients = self.grad_wrapper.compute_loss_gradient(X, y)
+                return gradients
+            except Exception as e:
+                print(f"⚠ Analytical gradient failed: {e}, using numerical approximation")
+        
+        # Fallback: Numerical gradient approximation (SLOW & INACCURATE)
+        print("⚠ Using numerical gradient approximation - may be slow and inaccurate")
         epsilon = 1e-4
         gradients = np.zeros_like(X)
         

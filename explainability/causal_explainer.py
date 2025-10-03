@@ -27,17 +27,36 @@ class CounterfactualExplainer:
     - Actionable Recourse
     """
     
-    def __init__(self, model: Any, method: str = 'wachter'):
+    def __init__(self, model: Any, method: str = 'wachter',
+                 use_analytical_gradients: bool = True):
         """
         Khởi tạo Counterfactual Explainer
         
         Args:
             model: Model cần giải thích
             method: 'wachter', 'dice', or 'actionable'
+            use_analytical_gradients: Use GradientWrapper for accurate optimization
         """
         self.model = model
         self.method = method
         self.counterfactuals_history = []
+        
+        # Initialize GradientWrapper for proper optimization
+        self.use_analytical = use_analytical_gradients
+        if self.use_analytical:
+            try:
+                from core.adapters import GradientWrapper, OptimizationHelper
+                self.grad_wrapper = GradientWrapper(model)
+                self.optimizer = OptimizationHelper(self.grad_wrapper)
+                print(f"✓ CounterfactualExplainer using {self.grad_wrapper}")
+            except ImportError:
+                print("⚠ GradientWrapper not available, using numerical optimization")
+                self.grad_wrapper = None
+                self.optimizer = None
+                self.use_analytical = False
+        else:
+            self.grad_wrapper = None
+            self.optimizer = None
     
     def explain(self, X_instance: np.ndarray, 
                desired_class: Optional[int] = None,
@@ -80,6 +99,8 @@ class CounterfactualExplainer:
         Wachter et al. (2017) - Optimization-based counterfactual
         
         Minimize: loss(f(X'), desired) + λ * distance(X, X')
+        
+        Uses analytical gradients from GradientWrapper if available
         """
         # Original prediction
         original_pred = self.model.predict(X_instance.reshape(1, -1))[0]
@@ -92,6 +113,48 @@ class CounterfactualExplainer:
                 desired_class = 1 - original_pred if len(proba) == 2 else (original_pred + 1) % len(proba)
             else:
                 desired_class = 1 - original_pred
+        
+        # Use OptimizationHelper if available (RECOMMENDED)
+        if self.optimizer is not None:
+            constraints = {
+                'immutable_features': [i for i in range(len(X_instance)) if i not in (features_to_vary or [])],
+                'bounds': (X_instance.min(), X_instance.max())
+            }
+            
+            try:
+                X_cf = self.optimizer.optimize_toward_target(
+                    X_instance,
+                    desired_class,
+                    max_iterations=max_iterations,
+                    learning_rate=learning_rate,
+                    constraints=constraints
+                )
+                
+                # Calculate changes
+                changes = self._calculate_changes(X_instance, X_cf)
+                distance = np.linalg.norm(X_cf - X_instance)
+                
+                result = {
+                    'original_instance': X_instance,
+                    'counterfactual': X_cf,
+                    'original_prediction': original_pred,
+                    'counterfactual_prediction': self.model.predict(X_cf.reshape(1, -1))[0],
+                    'desired_class': desired_class,
+                    'distance': distance,
+                    'changes': changes,
+                    'validity': self.model.predict(X_cf.reshape(1, -1))[0] == desired_class,
+                    'method': 'wachter_analytical',
+                    'gradient_type': 'analytical'
+                }
+                
+                self.counterfactuals_history.append(result)
+                return result
+            
+            except Exception as e:
+                print(f"⚠ Analytical optimization failed: {e}, using numerical fallback")
+        
+        # Fallback: Numerical optimization (SLOW & INACCURATE)
+        print("⚠ Using numerical optimization - may be slow and inaccurate for Deep Learning")
         
         # Initialize counterfactual
         X_cf = X_instance.copy()
@@ -139,7 +202,8 @@ class CounterfactualExplainer:
             'distance': best_distance,
             'changes': changes,
             'validity': best_distance < float('inf'),
-            'method': 'wachter'
+            'method': 'wachter_numerical',
+            'gradient_type': 'numerical'
         }
         
         self.counterfactuals_history.append(result)
